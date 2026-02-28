@@ -1,0 +1,654 @@
+---
+# ==========================================
+# ClusterIP Services (Acesso Interno)
+# ==========================================
+
+# ClusterIP Simples - Exemplo Básico
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-api
+  labels:
+    app: backend
+spec:
+  type: ClusterIP  # Padrão, pode omitir
+  selector:
+    app: backend
+  ports:
+  - port: 80
+    targetPort: 8080
+
+---
+# ClusterIP com Múltiplas Portas
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp-multiport
+spec:
+  type: ClusterIP
+  selector:
+    app: webapp
+  ports:
+  - name: http       # Nome obrigatório com múltiplas portas
+    port: 80
+    targetPort: 8080
+    protocol: TCP
+  - name: https
+    port: 443
+    targetPort: 8443
+    protocol: TCP
+  - name: metrics
+    port: 9090
+    targetPort: 9090
+    protocol: TCP
+
+---
+# ClusterIP com Session Affinity (Sticky Sessions)
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp-sticky
+spec:
+  type: ClusterIP
+  sessionAffinity: ClientIP  # Mesmo cliente → mesmo Pod
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800  # 3 horas
+  selector:
+    app: webapp
+  ports:
+  - port: 80
+    targetPort: 8080
+
+---
+# ClusterIP com IP Específico
+apiVersion: v1
+kind: Service
+metadata:
+  name: database-service
+spec:
+  type: ClusterIP
+  clusterIP: 10.96.0.100  # IP fixo (raramente necessário)
+  selector:
+    app: postgres
+  ports:
+  - name: postgres
+    port: 5432
+    targetPort: 5432
+
+---
+# Headless Service (sem ClusterIP)
+apiVersion: v1
+kind: Service
+metadata:
+  name: statefulset-service
+spec:
+  clusterIP: None  # Headless - retorna IPs dos Pods diretamente
+  selector:
+    app: mystatefulapp
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+
+---
+# ClusterIP para Banco de Dados
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: databases
+  labels:
+    app: postgres
+    tier: database
+spec:
+  type: ClusterIP
+  selector:
+    app: postgres
+  ports:
+  - name: postgres
+    port: 5432
+    targetPort: 5432
+    protocol: TCP
+
+---
+# ClusterIP para Redis Cache
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: cache
+  labels:
+    app: redis
+spec:
+  type: ClusterIP
+  selector:
+    app: redis
+  ports:
+  - name: redis
+    port: 6379
+    targetPort: 6379
+
+---
+# ClusterIP para RabbitMQ
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq
+spec:
+  type: ClusterIP
+  selector:
+    app: rabbitmq
+  ports:
+  - name: amqp
+    port: 5672
+    targetPort: 5672
+  - name: management
+    port: 15672
+    targetPort: 15672
+
+---
+# ClusterIP com internalTrafficPolicy Local
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp-local
+spec:
+  type: ClusterIP
+  internalTrafficPolicy: Local  # Roteia apenas para Pods no mesmo node
+  selector:
+    app: webapp
+  ports:
+  - port: 80
+    targetPort: 8080
+
+---
+# Service sem Selector (Endpoints externos)
+apiVersion: v1
+kind: Service
+metadata:
+  name: external-database
+spec:
+  type: ClusterIP
+  ports:
+  - port: 3306
+    targetPort: 3306
+# Sem selector - Endpoints criado manualmente abaixo
+
+---
+# Endpoints para Service acima (banco externo)
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: external-database  # Mesmo nome do Service
+subsets:
+- addresses:
+  - ip: 192.168.1.100      # IP do servidor externo
+  - ip: 192.168.1.101      # Outro servidor (HA)
+  ports:
+  - port: 3306
+
+---
+# ==========================================
+# NodePort Services (Acesso Externo via Node)
+# ==========================================
+
+# NodePort Simples - Porta Automática
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp-nodeport
+spec:
+  type: NodePort
+  selector:
+    app: webapp
+  ports:
+  - port: 80         # Porta do ClusterIP
+    targetPort: 8080 # Porta do container
+    # nodePort: automático (30000-32767)
+
+---
+# NodePort com Porta Específica
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp-nodeport-fixed
+spec:
+  type: NodePort
+  selector:
+    app: webapp
+  ports:
+  - port: 80
+    targetPort: 8080
+    nodePort: 30080  # Porta fixa no node
+
+---
+# NodePort com Múltiplas Portas
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp-multiport-nodeport
+spec:
+  type: NodePort
+  selector:
+    app: webapp
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+    nodePort: 30080
+  - name: https
+    port: 443
+    targetPort: 8443
+    nodePort: 30443
+  - name: metrics
+    port: 9090
+    targetPort: 9090
+    nodePort: 30090
+
+---
+# NodePort com externalTrafficPolicy Local
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp-nodeport-local
+spec:
+  type: NodePort
+  externalTrafficPolicy: Local  # Preserva IP do cliente, sem hops
+  selector:
+    app: webapp
+  ports:
+  - port: 80
+    targetPort: 8080
+    nodePort: 30080
+
+---
+# NodePort com externalTrafficPolicy Cluster
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp-nodeport-cluster
+spec:
+  type: NodePort
+  externalTrafficPolicy: Cluster  # Padrão - melhor balanceamento
+  selector:
+    app: webapp
+  ports:
+  - port: 80
+    targetPort: 8080
+    nodePort: 30080
+
+---
+# NodePort com Session Affinity
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp-nodeport-sticky
+spec:
+  type: NodePort
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 3600
+  selector:
+    app: webapp
+  ports:
+  - port: 80
+    targetPort: 8080
+    nodePort: 30080
+
+---
+# NodePort para Desenvolvimento
+apiVersion: v1
+kind: Service
+metadata:
+  name: dev-app
+  namespace: development
+spec:
+  type: NodePort
+  selector:
+    app: dev-app
+  ports:
+  - name: http
+    port: 3000
+    targetPort: 3000
+    nodePort: 30300
+
+---
+# ==========================================
+# LoadBalancer Services (Acesso Externo via Cloud LB)
+# ==========================================
+
+# LoadBalancer Simples
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp-lb
+spec:
+  type: LoadBalancer
+  selector:
+    app: webapp
+  ports:
+  - port: 80
+    targetPort: 8080
+
+---
+# LoadBalancer com externalTrafficPolicy Local
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp-lb-local
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Local  # Preserva IP do cliente
+  selector:
+    app: webapp
+  ports:
+  - port: 80
+    targetPort: 8080
+
+---
+# LoadBalancer com Source IP Restriction
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp-lb-restricted
+spec:
+  type: LoadBalancer
+  loadBalancerSourceRanges:  # Apenas estes IPs podem acessar
+  - 203.0.113.0/24
+  - 198.51.100.0/24
+  selector:
+    app: webapp
+  ports:
+  - port: 80
+    targetPort: 8080
+
+---
+# LoadBalancer com IP Específico (Reservado)
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp-lb-fixed-ip
+spec:
+  type: LoadBalancer
+  loadBalancerIP: 203.0.113.50  # IP previamente reservado
+  selector:
+    app: webapp
+  ports:
+  - port: 80
+    targetPort: 8080
+
+---
+# LoadBalancer com Múltiplas Portas
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp-lb-multiport
+spec:
+  type: LoadBalancer
+  selector:
+    app: webapp
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+  - name: https
+    port: 443
+    targetPort: 8443
+
+---
+# LoadBalancer AWS - Network Load Balancer (NLB)
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp-aws-nlb
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-path: "/health"
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-protocol: "HTTP"
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-interval: "10"
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Local
+  selector:
+    app: webapp
+  ports:
+  - port: 80
+    targetPort: 8080
+
+---
+# LoadBalancer AWS - Internal (VPC apenas)
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp-aws-internal
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-internal: "true"
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+spec:
+  type: LoadBalancer
+  selector:
+    app: webapp
+  ports:
+  - port: 80
+    targetPort: 8080
+
+---
+# LoadBalancer AWS - com SSL Certificate
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp-aws-ssl
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-ssl-cert: "arn:aws:acm:us-east-1:123456789:certificate/abc-123"
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "http"
+    service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "443"
+spec:
+  type: LoadBalancer
+  selector:
+    app: webapp
+  ports:
+  - name: https
+    port: 443
+    targetPort: 8080  # Backend é HTTP
+
+---
+# LoadBalancer GCP - Internal
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp-gcp-internal
+  annotations:
+    cloud.google.com/load-balancer-type: "Internal"
+spec:
+  type: LoadBalancer
+  selector:
+    app: webapp
+  ports:
+  - port: 80
+    targetPort: 8080
+
+---
+# LoadBalancer GCP - com Backend Config
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp-gcp
+  annotations:
+    cloud.google.com/backend-config: '{"default": "my-backend-config"}'
+spec:
+  type: LoadBalancer
+  selector:
+    app: webapp
+  ports:
+  - port: 80
+    targetPort: 8080
+
+---
+# LoadBalancer Azure - Internal
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp-azure-internal
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+    service.beta.kubernetes.io/azure-load-balancer-internal-subnet: "mysubnet"
+spec:
+  type: LoadBalancer
+  selector:
+    app: webapp
+  ports:
+  - port: 80
+    targetPort: 8080
+
+---
+# LoadBalancer Azure - com IP específico
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp-azure-ip
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-ipv4: "20.30.40.50"
+    service.beta.kubernetes.io/azure-load-balancer-resource-group: "myResourceGroup"
+spec:
+  type: LoadBalancer
+  selector:
+    app: webapp
+  ports:
+  - port: 80
+    targetPort: 8080
+
+---
+# LoadBalancer DigitalOcean - com SSL
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp-do-ssl
+  annotations:
+    service.beta.kubernetes.io/do-loadbalancer-certificate-id: "cert-id-123"
+    service.beta.kubernetes.io/do-loadbalancer-redirect-http-to-https: "true"
+    service.beta.kubernetes.io/do-loadbalancer-healthcheck-path: "/health"
+    service.beta.kubernetes.io/do-loadbalancer-healthcheck-protocol: "http"
+spec:
+  type: LoadBalancer
+  selector:
+    app: webapp
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+  - name: https
+    port: 443
+    targetPort: 8080
+
+---
+# LoadBalancer com Health Check Customizado
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp-lb-healthcheck
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-path: "/api/health"
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-healthy-threshold: "2"
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-unhealthy-threshold: "2"
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-interval: "10"
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-timeout: "5"
+spec:
+  type: LoadBalancer
+  selector:
+    app: webapp
+  ports:
+  - port: 80
+    targetPort: 8080
+
+---
+# ==========================================
+# ExternalName Service (DNS Externo)
+# ==========================================
+
+# ExternalName - Mapeia para DNS externo
+apiVersion: v1
+kind: Service
+metadata:
+  name: external-api
+spec:
+  type: ExternalName
+  externalName: api.external-service.com
+  # Sem selector ou ports
+  # DNS lookup para external-api retorna CNAME para api.external-service.com
+
+---
+# ExternalName para Banco de Dados RDS
+apiVersion: v1
+kind: Service
+metadata:
+  name: rds-database
+  namespace: production
+spec:
+  type: ExternalName
+  externalName: mydb.abc123.us-east-1.rds.amazonaws.com
+
+---
+# ==========================================
+# Services Avançados
+# ==========================================
+
+# Service com Topology Aware Hints (reduz tráfego cross-zone)
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp-topology
+  annotations:
+    service.kubernetes.io/topology-mode: Auto
+spec:
+  type: ClusterIP
+  selector:
+    app: webapp
+  ports:
+  - port: 80
+    targetPort: 8080
+
+---
+# Service com Annotations para Monitoring
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp-monitored
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9090"
+    prometheus.io/path: "/metrics"
+  labels:
+    app: webapp
+    monitoring: prometheus
+spec:
+  type: ClusterIP
+  selector:
+    app: webapp
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+  - name: metrics
+    port: 9090
+    targetPort: 9090
+
+---
+# Service com IPv4 e IPv6 (Dual Stack)
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp-dualstack
+spec:
+  type: LoadBalancer
+  ipFamilyPolicy: PreferDualStack
+  ipFamilies:
+  - IPv4
+  - IPv6
+  selector:
+    app: webapp
+  ports:
+  - port: 80
+    targetPort: 8080
