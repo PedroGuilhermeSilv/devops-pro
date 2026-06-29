@@ -1,12 +1,13 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: web
+  name: web-blue
 spec:
   replicas: 10
   selector:
     matchLabels:
       app: web
+      version: blue
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -16,10 +17,38 @@ spec:
     metadata:
       labels:
         app: web
+        version: blue
     spec:
       containers:
       - name: web
         image: fabricioveronez/web-color:blue
+        ports:
+        - containerPort: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-green
+spec:
+  replicas: 10
+  selector:
+    matchLabels:
+      app: web
+      version: green
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  template:
+    metadata:
+      labels:
+        app: web
+        version: green
+    spec:
+      containers:
+      - name: web
+        image: fabricioveronez/web-color:green
         ports:
         - containerPort: 80
 ---
@@ -30,6 +59,7 @@ metadata:
 spec:
   selector:
     app: web
+    version: blue
   ports:
   - port: 80
     targetPort: 80
